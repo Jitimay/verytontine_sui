@@ -25,6 +25,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (context) => CircleBloc()..add(LoadCircles())),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,  
         title: 'VeryTontine',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(

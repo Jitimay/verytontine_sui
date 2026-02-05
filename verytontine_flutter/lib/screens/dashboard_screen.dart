@@ -28,7 +28,7 @@ class DashboardScreen extends StatelessWidget {
                 return CustomScrollView(
                   slivers: [
                     SliverAppBar(
-                      expandedHeight: 120,
+                      expandedHeight: 80,
                       floating: false,
                       pinned: true,
                       backgroundColor: Colors.transparent,
@@ -45,12 +45,12 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+                            padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 50,
-                                  height: 50,
+                                  width: 40,
+                                  height: 40,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: LinearGradient(
@@ -63,7 +63,7 @@ class DashboardScreen extends StatelessWidget {
                                       style: const TextStyle(
                                         color: Colors.black,
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 20,
+                                        fontSize: 16,
                                       ),
                                     ),
                                   ),
@@ -73,21 +73,26 @@ class DashboardScreen extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
                                         'Welcome back,',
                                         style: TextStyle(
                                           color: Colors.white.withValues(alpha: 0.7),
-                                          fontSize: 14,
+                                          fontSize: 12,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         authState.user.name,
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 20,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),
