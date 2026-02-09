@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       Icons.login,
                       const LinearGradient(colors: [Colors.white, Colors.grey]),
                       Colors.black,
-                      () => context.read<AuthBloc>().add(LoginRequested(address: '0x1234...abcd', name: 'Demo User')),
+                      () => context.read<AuthBloc>().add(ZkLoginRequested(provider: 'google')),
                     ),
                     const SizedBox(height: 16),
                     _buildGlassButton(
@@ -131,6 +131,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       const Color(0xFF00FF87),
                       () => context.read<AuthBloc>().add(LoginRequested(address: '0x5678...efgh', name: 'New User')),
                       isOutlined: true,
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Progress Indicator for zkLogin steps
+                    BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, state) {
+                        if (state is AuthLoading && state.message != null) {
+                          return Column(
+                            children: [
+                              const CircularProgressIndicator(color: Color(0xFF00FF87)),
+                              const SizedBox(height: 12),
+                              Text(
+                                state.message!,
+                                style: const TextStyle(color: Color(0xFF00FF87), fontSize: 13),
+                              ),
+                            ],
+                          );
+                        }
+                        if (state is AuthError) {
+                          return Text(
+                            state.message,
+                            style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
                     ),
                     const SizedBox(height: 40),
                     
