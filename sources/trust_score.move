@@ -1,7 +1,5 @@
 module verytontine::trust_score {
-    use sui::object::{UID};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer;
+    use sui::object::UID;
 
     /// Error codes
     const ENotOwner: u64 = 1;
@@ -15,7 +13,7 @@ module verytontine::trust_score {
 
     /// Initialize a trust score for a new user
     public fun initialize_trust_score(ctx: &mut TxContext) {
-        let user = tx_context::sender(ctx);
+        let user = ctx.sender();
         let trust_score = TrustScore {
             id: object::new(ctx),
             user,

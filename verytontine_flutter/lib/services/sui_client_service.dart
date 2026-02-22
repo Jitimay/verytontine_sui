@@ -6,7 +6,7 @@ class SuiClientService {
   late Ed25519Keypair _keypair;
   
   static const String _rpcUrl = 'https://fullnode.testnet.sui.io:443';
-  static const String _packageId = '0x0'; // Replace with deployed package ID
+  static const String _packageId = '0xc7f0db7397eb5b9adf0369b9da49bd9102c532ead2015a4f0dc4b30f28578199';
   
   Future<void> initialize() async {
     _client = SuiClient(_rpcUrl);

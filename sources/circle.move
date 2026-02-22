@@ -1,12 +1,8 @@
 module verytontine::circle {
-    use sui::object::{Self, UID};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer;
-    use std::string::{String};
-    use std::vector;
+    use sui::object::UID;
+    use std::string::String;
 
     /// Error codes
-    const ENotMember: u64 = 0;
     const EAlreadyMember: u64 = 1;
 
     /// The Circle object representing a savings group
@@ -21,14 +17,14 @@ module verytontine::circle {
     }
 
     /// Create a new savings circle
-    public entry fun create_circle(
+    public fun create_circle(
         name: String,
         contribution_amount: u64,
         ctx: &mut TxContext
     ) {
-        let creator = tx_context::sender(ctx);
+        let creator = ctx.sender();
         let mut members = vector::empty<address>();
-        vector::push_back(&mut members, creator);
+        members.push_back(creator);
 
         let circle = Circle {
             id: object::new(ctx),
@@ -37,24 +33,24 @@ module verytontine::circle {
             members,
             contribution_amount,
             round_index: 0,
-            payout_order: vector::singleton(creator), // Initial order, can be shuffled later
+            payout_order: vector::singleton(creator),
         };
 
         transfer::share_object(circle);
     }
 
     /// Join an existing circle
-    public entry fun join_circle(circle: &mut Circle, ctx: &mut TxContext) {
-        let new_member = tx_context::sender(ctx);
-        assert!(!vector::contains(&circle.members, &new_member), EAlreadyMember);
+    public fun join_circle(circle: &mut Circle, ctx: &mut TxContext) {
+        let new_member = ctx.sender();
+        assert!(!circle.members.contains(&new_member), EAlreadyMember);
         
-        vector::push_back(&mut circle.members, new_member);
-        vector::push_back(&mut circle.payout_order, new_member);
+        circle.members.push_back(new_member);
+        circle.payout_order.push_back(new_member);
     }
 
     /// Check if an address is a member of the circle
     public fun is_member(circle: &Circle, account: address): bool {
-        vector::contains(&circle.members, &account)
+        circle.members.contains(&account)
     }
 
     /// Get the contribution amount for the circle
@@ -64,8 +60,8 @@ module verytontine::circle {
 
     /// Get the current beneficiary for the round
     public fun get_current_beneficiary(circle: &Circle): address {
-        let num_members = vector::length(&circle.payout_order);
-        *vector::borrow(&circle.payout_order, circle.round_index % num_members)
+        let num_members = circle.payout_order.length();
+        *circle.payout_order.borrow(circle.round_index % num_members)
     }
 
     /// Increment the round index
@@ -75,7 +71,7 @@ module verytontine::circle {
 
     /// Get the number of members in the circle
     public fun member_count(circle: &Circle): u64 {
-        vector::length(&circle.members)
+        circle.members.length()
     }
 
     /// Get the creator of the circle
