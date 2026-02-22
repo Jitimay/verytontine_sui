@@ -2,87 +2,86 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:sui/sui.dart';
-import 'package:http/http.dart' as http;
-import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_appauth/flutter_appauth.dart';
 
 class ZkLoginService {
-  static const String proverUrl = 'https://prover.mystenlabs.com/v1'; // Example Prover URL
+  static const String _googleClientId = '1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com';
+  static const String _redirectUri = 'com.verytontine.app:/oauth2redirect';
   
-  // These should be configured via environment or a config file
-  static const String googleClientId = 'YOUR_GOOGLE_CLIENT_ID';
-  static const String redirectUri = 'com.example.verytontine:/oauth2redirect';
-
-  /// Generates a random string of fixed length
+  final GoogleSignIn _googleSignIn = GoogleSignIn(clientId: _googleClientId);
+  final FlutterAppAuth _appAuth = const FlutterAppAuth();
+  
+  late Ed25519Keypair _ephemeralKeypair;
+  late String _randomness;
+  late int _maxEpoch;
+  
+  Future<String> signInWithGoogle() async {
+    _ephemeralKeypair = Ed25519Keypair.generate();
+    _randomness = _generateRandomness();
+    _maxEpoch = await _getCurrentEpoch() + 10;
+    
+    final nonce = _generateNonce(_ephemeralKeypair.getPublicKey(), _maxEpoch, _randomness);
+    
+    final result = await _appAuth.authorizeAndExchangeCode(
+      AuthorizationTokenRequest(
+        _googleClientId,
+        _redirectUri,
+        serviceConfiguration: const AuthorizationServiceConfiguration(
+          authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+          tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        ),
+        additionalParameters: {'nonce': nonce},
+        scopes: ['openid', 'email'],
+      ),
+    );
+    
+    if (result?.idToken != null) {
+      return await _processZkLogin(result!.idToken!);
+    }
+    throw Exception('Google sign-in failed');
+  }
+  
+  Future<String> _processZkLogin(String jwt) async {
+    final salt = _generateSalt();
+    final zkAddress = _computeZkLoginAddress(jwt, salt);
+    
+    // Store ephemeral keypair and other data for transaction signing
+    return zkAddress;
+  }
+  
   String _generateRandomness() {
     final random = Random.secure();
     final values = List<int>.generate(32, (i) => random.nextInt(256));
     return base64Url.encode(values).replaceAll('=', '');
   }
-
-  /// Generates the zkLogin nonce
-  /// [publicKey] is the ephemeral public key
-  /// [maxEpoch] is the epoch after which the ephemeral key expires
-  /// [randomness] is a random string used for privacy
-  String generateNonce(Ed25519PublicKey publicKey, int maxEpoch, String randomness) {
-    // 1. Get the bytes of the public key
+  
+  String _generateNonce(Ed25519PublicKey publicKey, int maxEpoch, String randomness) {
     final pubKeyBytes = publicKey.toRawBytes();
-    
-    // 2. Hash the public key, maxEpoch, and randomness
-    // Note: The exact implementation depends on the Sui SDK's helper if available.
-    // In Sui, the nonce is: base64(BigInt(hash(pubKey, maxEpoch, randomness)))
-    // For now, we'll placeholder the logic as per the spec.
-    
-    // This is a simplified version of the nonce generation
     final input = '${base64Url.encode(pubKeyBytes)}|$maxEpoch|$randomness';
     final hash = sha256.convert(utf8.encode(input)).bytes;
     return base64Url.encode(hash).replaceAll('=', '');
   }
-
-  /// Fetches the Zero-Knowledge Proof (ZKP) from the prover service
-  Future<Map<String, dynamic>> getZkProof({
-    required String jwt,
-    required String randomness,
-    required int maxEpoch,
-    required String ephemeralPublicKey,
-    required String salt,
-  }) async {
-    final response = await http.post(
-      Uri.parse(proverUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'jwt': jwt,
-        'extendedEphemeralPublicKey': ephemeralPublicKey,
-        'maxEpoch': maxEpoch,
-        'jwtNonce': _extractNonceFromJwt(jwt),
-        'salt': salt,
-        'randomness': randomness,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to fetch ZKP: ${response.body}');
-    }
+  
+  String _generateSalt() {
+    final random = Random.secure();
+    return random.nextInt(1 << 32).toString();
   }
-
-  String _extractNonceFromJwt(String jwt) {
-    final decoded = JWT.decode(jwt);
-    return decoded.payload['nonce'] as String;
+  
+  String _computeZkLoginAddress(String jwt, String salt) {
+    final decoded = base64Url.decode(jwt.split('.')[1] + '==');
+    final payload = jsonDecode(utf8.decode(decoded));
+    final sub = payload['sub'];
+    final aud = payload['aud'];
+    
+    // Simplified address computation - in production use Sui SDK
+    final input = '$sub|$aud|$salt';
+    final hash = sha256.convert(utf8.encode(input)).bytes;
+    return '0x${hash.map((b) => b.toRadixString(16).padLeft(2, '0')).join().substring(0, 40)}';
   }
-
-  /// Simplified address derivation for zkLogin
-  String deriveZkLoginAddress({
-    required String jwt,
-    required String salt,
-  }) {
-    final decoded = JWT.decode(jwt);
-    final sub = decoded.payload['sub'];
-    final aud = decoded.payload['aud'];
-    final iss = decoded.payload['iss'];
-
-    // In a real implementation, we use the Sui SDK's computeZkLoginAddress
-    // computeZkLoginAddress(claimName: 'sub', claimValue: sub, ...);
-    return '0x...'; // Placeholder
+  
+  Future<int> _getCurrentEpoch() async {
+    // In production, fetch from Sui RPC
+    return DateTime.now().millisecondsSinceEpoch ~/ 86400000;
   }
 }

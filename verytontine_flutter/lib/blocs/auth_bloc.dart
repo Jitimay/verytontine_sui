@@ -2,7 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../models/models.dart';
 import '../services/zk_login_service.dart';
-import 'package:sui/sui.dart';
+import '../services/sui_client_service.dart';
 
 // Events
 abstract class AuthEvent extends Equatable {
@@ -10,25 +10,7 @@ abstract class AuthEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class LoginRequested extends AuthEvent {
-  final String address;
-  final String name;
-
-  LoginRequested({required this.address, required this.name});
-
-  @override
-  List<Object> get props => [address, name];
-}
-
-class ZkLoginRequested extends AuthEvent {
-  final String provider; // 'google', 'apple', etc.
-
-  ZkLoginRequested({required this.provider});
-
-  @override
-  List<Object> get props => [provider];
-}
-
+class ZkLoginRequested extends AuthEvent {}
 class LogoutRequested extends AuthEvent {}
 
 // States
@@ -38,16 +20,46 @@ abstract class AuthState extends Equatable {
 }
 
 class AuthInitial extends AuthState {}
-
-class AuthLoading extends AuthState {
-  final String? message;
-  AuthLoading({this.message});
-}
-
+class AuthLoading extends AuthState {}
 class AuthAuthenticated extends AuthState {
   final User user;
-
   AuthAuthenticated({required this.user});
+  @override
+  List<Object> get props => [user];
+}
+class AuthError extends AuthState {
+  final String message;
+  AuthError({required this.message});
+  @override
+  List<Object> get props => [message];
+}
+
+// BLoC
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  final ZkLoginService _zkLoginService = ZkLoginService();
+  final SuiClientService _suiClient = SuiClientService();
+
+  AuthBloc() : super(AuthInitial()) {
+    on<ZkLoginRequested>(_onZkLoginRequested);
+    on<LogoutRequested>(_onLogoutRequested);
+  }
+
+  Future<void> _onZkLoginRequested(ZkLoginRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      await _suiClient.initialize();
+      final address = await _zkLoginService.signInWithGoogle();
+      final user = User(id: address, name: 'User', address: address);
+      emit(AuthAuthenticated(user: user));
+    } catch (e) {
+      emit(AuthError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
+    emit(AuthInitial());
+  }
+}
 
   @override
   List<Object> get props => [user];

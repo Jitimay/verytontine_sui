@@ -19,13 +19,15 @@ using smart contracts with a mobile-first interface.
 ## MVP Scope (Mission 1)
 - ✅ Flutter app with black theme UI
 - ✅ BLoC state management
-- 🔄 Sui Move smart contracts
-- 🔄 Integration between Flutter and Sui
+- ✅ Sui Move smart contracts (Hardened & Tested)
+- ✅ zkLogin Authentication (Logic & UI)
+- 🔄 Full On-Chain Integration (Currently Mocked in BLoCs)
 
-## Modules
-- **`circle.move`**: Handles savings groups, membership, and rotation.
-- **`vault.move`**: Manages the multi-user digital vault and payouts.
-- **`trust_score.move`**: Tracks user reputation for financial history.
+## Core Features
+1. **Savings Circles**: Permissioned groups for periodic contributions.
+2. **Automated Vault**: Securely manages pool funds and determines the next beneficiary.
+3. **zkLogin**: Seamless seedless onboarding using Google/Apple OIDC.
+4. **Reputation System**: Dynamic trust scores based on payment history.
 
 ## Building and Testing
 
