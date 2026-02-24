@@ -23,9 +23,10 @@ class Circle extends Equatable {
 
   static Circle fromSuiObject(dynamic obj) {
     try {
-      final fields = obj.data?.content?.fields ?? {};
+      final data = obj['data'];
+      final fields = data?['content']?['fields'] ?? {};
       return Circle(
-        id: obj.data?.objectId ?? '',
+        id: data?['objectId'] ?? '',
         name: fields['name'] ?? 'Unknown Circle',
         creator: fields['creator'] ?? '',
         members: List<String>.from(fields['members'] ?? []),
@@ -36,7 +37,7 @@ class Circle extends Equatable {
       );
     } catch (e) {
       return Circle(
-        id: obj.data?.objectId ?? '',
+        id: '',
         name: 'Error Loading Circle',
         creator: '',
         members: [],

@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       Icons.login,
                       const LinearGradient(colors: [Colors.white, Colors.grey]),
                       Colors.black,
-                      () => context.read<AuthBloc>().add(ZkLoginRequested(provider: 'google')),
+                      () => context.read<AuthBloc>().add(ZkLoginRequested()),
                     ),
                     const SizedBox(height: 16),
                     _buildGlassButton(
@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       Icons.person_add,
                       LinearGradient(colors: [Colors.white.withValues(alpha: 0.1), Colors.white.withValues(alpha: 0.05)]),
                       const Color(0xFF00FF87),
-                      () => context.read<AuthBloc>().add(LoginRequested(address: '0x5678...efgh', name: 'New User')),
+                      () => context.read<AuthBloc>().add(ZkLoginRequested()),
                       isOutlined: true,
                     ),
                     const SizedBox(height: 24),
@@ -198,9 +198,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               Colors.black,
                               state is AuthLoading ? null : () {
                                 if (_nameController.text.isNotEmpty && _addressController.text.isNotEmpty) {
-                                  context.read<AuthBloc>().add(
-                                    LoginRequested(address: _addressController.text, name: _nameController.text),
-                                  );
+                                  context.read<AuthBloc>().add(ZkLoginRequested());
                                 }
                               },
                               isLoading: state is AuthLoading,

@@ -44,7 +44,7 @@ class HomeScreen extends StatelessWidget {
       ),
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthUnauthenticated) {
+          if (state is AuthInitial) {
             Navigator.pushReplacementNamed(context, '/login');
           }
         },
