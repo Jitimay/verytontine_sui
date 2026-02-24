@@ -1,9 +1,24 @@
 module verytontine::circle {
     use sui::object::UID;
     use std::string::String;
+    use sui::event;
 
     /// Error codes
     const EAlreadyMember: u64 = 1;
+
+    /// Events
+    public struct CircleCreated has copy, drop {
+        circle_id: address,
+        name: String,
+        creator: address,
+        contribution_amount: u64,
+    }
+
+    public struct MemberJoined has copy, drop {
+        circle_id: address,
+        member: address,
+        total_members: u64,
+    }
 
     /// The Circle object representing a savings group
     public struct Circle has key, store {
@@ -26,8 +41,11 @@ module verytontine::circle {
         let mut members = vector::empty<address>();
         members.push_back(creator);
 
+        let circle_id = object::new(ctx);
+        let circle_address = object::uid_to_address(&circle_id);
+
         let circle = Circle {
-            id: object::new(ctx),
+            id: circle_id,
             name,
             creator,
             members,
@@ -35,6 +53,13 @@ module verytontine::circle {
             round_index: 0,
             payout_order: vector::singleton(creator),
         };
+
+        event::emit(CircleCreated {
+            circle_id: circle_address,
+            name,
+            creator,
+            contribution_amount,
+        });
 
         transfer::share_object(circle);
     }
@@ -46,6 +71,12 @@ module verytontine::circle {
         
         circle.members.push_back(new_member);
         circle.payout_order.push_back(new_member);
+
+        event::emit(MemberJoined {
+            circle_id: object::id_address(circle),
+            member: new_member,
+            total_members: circle.members.length(),
+        });
     }
 
     /// Check if an address is a member of the circle
@@ -62,6 +93,11 @@ module verytontine::circle {
     public fun get_current_beneficiary(circle: &Circle): address {
         let num_members = circle.payout_order.length();
         *circle.payout_order.borrow(circle.round_index % num_members)
+    }
+
+    /// Get the current round index
+    public fun round_index(circle: &Circle): u64 {
+        circle.round_index
     }
 
     /// Increment the round index

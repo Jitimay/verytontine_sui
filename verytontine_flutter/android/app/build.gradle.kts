@@ -28,6 +28,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Add appAuthRedirectScheme for flutter_appauth
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.verytontine.app"
     }
 
     buildTypes {
