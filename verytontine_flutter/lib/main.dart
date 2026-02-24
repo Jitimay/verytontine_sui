@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'blocs/auth_bloc.dart';
 import 'blocs/circle_bloc_new.dart';
+import 'blocs/transaction_bloc.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
@@ -23,6 +24,12 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => AuthBloc()),
         BlocProvider(create: (context) => CircleBloc()..add(LoadCircles())),
+        BlocProvider(
+          create: (context) => TransactionBloc(
+            authBloc: context.read<AuthBloc>(),
+            circleBloc: context.read<CircleBloc>(),
+          ),
+        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,  

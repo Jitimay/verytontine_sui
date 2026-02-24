@@ -22,17 +22,30 @@ class Circle extends Equatable {
   });
 
   static Circle fromSuiObject(dynamic obj) {
-    final fields = obj.data?.content?.fields ?? {};
-    return Circle(
-      id: obj.data?.objectId ?? '',
-      name: fields['name'] ?? '',
-      creator: fields['creator'] ?? '',
-      members: List<String>.from(fields['members'] ?? []),
-      contributionAmount: (fields['contribution_amount'] ?? 0).toDouble(),
-      roundIndex: fields['round_index'] ?? 0,
-      vaultBalance: 0.0,
-      payoutOrder: List<String>.from(fields['payout_order'] ?? []),
-    );
+    try {
+      final fields = obj.data?.content?.fields ?? {};
+      return Circle(
+        id: obj.data?.objectId ?? '',
+        name: fields['name'] ?? 'Unknown Circle',
+        creator: fields['creator'] ?? '',
+        members: List<String>.from(fields['members'] ?? []),
+        contributionAmount: double.tryParse(fields['contribution_amount']?.toString() ?? '0') ?? 0.0,
+        roundIndex: int.tryParse(fields['round_index']?.toString() ?? '0') ?? 0,
+        vaultBalance: 0.0, // Will be fetched separately
+        payoutOrder: List<String>.from(fields['payout_order'] ?? []),
+      );
+    } catch (e) {
+      return Circle(
+        id: obj.data?.objectId ?? '',
+        name: 'Error Loading Circle',
+        creator: '',
+        members: [],
+        contributionAmount: 0.0,
+        roundIndex: 0,
+        vaultBalance: 0.0,
+        payoutOrder: [],
+      );
+    }
   }
 
   @override
@@ -49,7 +62,7 @@ class User extends Equatable {
     required this.id,
     required this.address,
     required this.name,
-    required this.trustScore,
+    this.trustScore = 0,
   });
 
   @override

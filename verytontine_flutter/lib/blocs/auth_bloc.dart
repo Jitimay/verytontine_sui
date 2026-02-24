@@ -12,6 +12,12 @@ abstract class AuthEvent extends Equatable {
 
 class ZkLoginRequested extends AuthEvent {}
 class LogoutRequested extends AuthEvent {}
+class SignTransaction extends AuthEvent {
+  final String transactionBytes;
+  SignTransaction({required this.transactionBytes});
+  @override
+  List<Object> get props => [transactionBytes];
+}
 
 // States
 abstract class AuthState extends Equatable {
@@ -20,18 +26,34 @@ abstract class AuthState extends Equatable {
 }
 
 class AuthInitial extends AuthState {}
-class AuthLoading extends AuthState {}
+
+class AuthLoading extends AuthState {
+  final String? message;
+  AuthLoading({this.message});
+  @override
+  List<Object> get props => [message ?? ''];
+}
+
 class AuthAuthenticated extends AuthState {
   final User user;
   AuthAuthenticated({required this.user});
   @override
   List<Object> get props => [user];
 }
+
 class AuthError extends AuthState {
   final String message;
   AuthError({required this.message});
   @override
   List<Object> get props => [message];
+}
+
+class TransactionSigned extends AuthState {
+  final String signature;
+  final String transactionBytes;
+  TransactionSigned({required this.signature, required this.transactionBytes});
+  @override
+  List<Object> get props => [signature, transactionBytes];
 }
 
 // BLoC
@@ -42,91 +64,60 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
     on<ZkLoginRequested>(_onZkLoginRequested);
     on<LogoutRequested>(_onLogoutRequested);
+    on<SignTransaction>(_onSignTransaction);
   }
 
   Future<void> _onZkLoginRequested(ZkLoginRequested event, Emitter<AuthState> emit) async {
-    emit(AuthLoading());
+    emit(AuthLoading(message: 'Initializing zkLogin...'));
+    
     try {
-      await _suiClient.initialize();
+      // Perform zkLogin authentication
+      emit(AuthLoading(message: 'Signing in with Google...'));
       final address = await _zkLoginService.signInWithGoogle();
-      final user = User(id: address, name: 'User', address: address);
-      emit(AuthAuthenticated(user: user));
-    } catch (e) {
-      emit(AuthError(message: e.toString()));
-    }
-  }
-
-  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
-    emit(AuthInitial());
-  }
-}
-
-  @override
-  List<Object> get props => [user];
-}
-
-class AuthUnauthenticated extends AuthState {}
-
-class AuthError extends AuthState {
-  final String message;
-  AuthError(this.message);
-}
-
-// BLoC
-class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final ZkLoginService _zkLoginService = ZkLoginService();
-
-  AuthBloc() : super(AuthInitial()) {
-    on<LoginRequested>(_onLoginRequested);
-    on<ZkLoginRequested>(_onZkLoginRequested);
-    on<LogoutRequested>(_onLogoutRequested);
-  }
-
-  void _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
-    emit(AuthLoading());
-    await Future.delayed(const Duration(seconds: 1));
-    final user = User(
-      address: event.address,
-      name: event.name,
-      trustScore: 100,
-    );
-    emit(AuthAuthenticated(user: user));
-  }
-
-  void _onZkLoginRequested(ZkLoginRequested event, Emitter<AuthState> emit) async {
-    try {
-      emit(AuthLoading(message: 'Initializing zkLogin...'));
       
-      // 1. Generate Ephemeral KeyPair
-      final keyPair = Ed25519Keypair();
-      final ephemeralPubKey = keyPair.getPublicKey();
+      // Set user address in Sui client
+      _suiClient.setUserAddress(address);
       
-      // 2. Mock OIDC flow (In real app, use google_sign_in)
-      emit(AuthLoading(message: 'Waiting for OIDC...'));
-      await Future.delayed(const Duration(seconds: 2));
-      const mockJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+      // Get user trust score
+      emit(AuthLoading(message: 'Loading user data...'));
+      final trustScore = await _suiClient.getUserTrustScore();
       
-      // 3. Fetch ZKP
-      emit(AuthLoading(message: 'Generating Zero-Knowledge Proof...'));
-      // In a real implementation we would call:
-      // final zkp = await _zkLoginService.getZkProof(...);
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // 4. Complete Authentication
-      final address = _zkLoginService.deriveZkLoginAddress(jwt: mockJwt, salt: 'MOCK_SALT');
+      // Create authenticated user
       final user = User(
-        address: address,
+        id: address,
         name: 'zkUser',
-        trustScore: 0,
+        address: address,
+        trustScore: trustScore,
       );
       
       emit(AuthAuthenticated(user: user));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(AuthError(message: 'Authentication failed: ${e.toString()}'));
     }
   }
 
-  void _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) {
-    emit(AuthUnauthenticated());
+  Future<void> _onSignTransaction(SignTransaction event, Emitter<AuthState> emit) async {
+    emit(AuthLoading(message: 'Signing transaction...'));
+    
+    try {
+      final signature = await _zkLoginService.signTransaction(event.transactionBytes);
+      emit(TransactionSigned(
+        signature: signature,
+        transactionBytes: event.transactionBytes,
+      ));
+    } catch (e) {
+      emit(AuthError(message: 'Transaction signing failed: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading(message: 'Signing out...'));
+    
+    try {
+      await _zkLoginService.signOut();
+      emit(AuthInitial());
+    } catch (e) {
+      emit(AuthError(message: 'Logout failed: ${e.toString()}'));
+    }
   }
 }

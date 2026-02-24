@@ -10,6 +10,7 @@ abstract class CircleEvent extends Equatable {
 }
 
 class LoadCircles extends CircleEvent {}
+
 class CreateCircle extends CircleEvent {
   final String name;
   final int contributionAmount;
@@ -17,20 +18,44 @@ class CreateCircle extends CircleEvent {
   @override
   List<Object> get props => [name, contributionAmount];
 }
+
 class JoinCircle extends CircleEvent {
   final String circleId;
   JoinCircle({required this.circleId});
   @override
   List<Object> get props => [circleId];
 }
+
 class ContributeToCircle extends CircleEvent {
   final String vaultId;
   final String circleId;
   final String trustScoreId;
   final int amount;
-  ContributeToCircle({required this.vaultId, required this.circleId, required this.trustScoreId, required this.amount});
+  ContributeToCircle({
+    required this.vaultId,
+    required this.circleId,
+    required this.trustScoreId,
+    required this.amount,
+  });
   @override
   List<Object> get props => [vaultId, circleId, trustScoreId, amount];
+}
+
+class ExecutePayout extends CircleEvent {
+  final String vaultId;
+  final String circleId;
+  ExecutePayout({required this.vaultId, required this.circleId});
+  @override
+  List<Object> get props => [vaultId, circleId];
+}
+
+class InitializeTrustScore extends CircleEvent {}
+
+class CreateVault extends CircleEvent {
+  final String circleId;
+  CreateVault({required this.circleId});
+  @override
+  List<Object> get props => [circleId];
 }
 
 // States
@@ -40,24 +65,43 @@ abstract class CircleState extends Equatable {
 }
 
 class CircleInitial extends CircleState {}
-class CircleLoading extends CircleState {}
+
+class CircleLoading extends CircleState {
+  final String? message;
+  CircleLoading({this.message});
+  @override
+  List<Object> get props => [message ?? ''];
+}
+
 class CircleLoaded extends CircleState {
   final List<Circle> circles;
-  CircleLoaded({required this.circles});
+  final int userTrustScore;
+  CircleLoaded({required this.circles, this.userTrustScore = 0});
   @override
-  List<Object> get props => [circles];
+  List<Object> get props => [circles, userTrustScore];
 }
+
 class CircleError extends CircleState {
   final String message;
   CircleError({required this.message});
   @override
   List<Object> get props => [message];
 }
+
 class CircleOperationSuccess extends CircleState {
   final String message;
-  CircleOperationSuccess({required this.message});
+  final String? transactionDigest;
+  CircleOperationSuccess({required this.message, this.transactionDigest});
   @override
-  List<Object> get props => [message];
+  List<Object> get props => [message, transactionDigest ?? ''];
+}
+
+class TransactionPending extends CircleState {
+  final String message;
+  final String transactionBytes;
+  TransactionPending({required this.message, required this.transactionBytes});
+  @override
+  List<Object> get props => [message, transactionBytes];
 }
 
 // BLoC
@@ -69,48 +113,146 @@ class CircleBloc extends Bloc<CircleEvent, CircleState> {
     on<CreateCircle>(_onCreateCircle);
     on<JoinCircle>(_onJoinCircle);
     on<ContributeToCircle>(_onContributeToCircle);
+    on<ExecutePayout>(_onExecutePayout);
+    on<InitializeTrustScore>(_onInitializeTrustScore);
+    on<CreateVault>(_onCreateVault);
   }
 
   Future<void> _onLoadCircles(LoadCircles event, Emitter<CircleState> emit) async {
-    emit(CircleLoading());
+    emit(CircleLoading(message: 'Loading circles...'));
+    
     try {
       final circles = await _suiClient.getUserCircles();
-      emit(CircleLoaded(circles: circles));
+      final trustScore = await _suiClient.getUserTrustScore();
+      
+      // Enrich circles with vault balances
+      final enrichedCircles = <Circle>[];
+      for (final circle in circles) {
+        final vaults = await _suiClient.getCircleVaults(circle.id);
+        double vaultBalance = 0.0;
+        
+        if (vaults.isNotEmpty) {
+          vaultBalance = await _suiClient.getVaultBalance(vaults.first);
+        }
+        
+        enrichedCircles.add(Circle(
+          id: circle.id,
+          name: circle.name,
+          creator: circle.creator,
+          members: circle.members,
+          contributionAmount: circle.contributionAmount,
+          roundIndex: circle.roundIndex,
+          vaultBalance: vaultBalance,
+          payoutOrder: circle.payoutOrder,
+        ));
+      }
+      
+      emit(CircleLoaded(circles: enrichedCircles, userTrustScore: trustScore));
     } catch (e) {
-      emit(CircleError(message: e.toString()));
+      emit(CircleError(message: 'Failed to load circles: ${e.toString()}'));
     }
   }
 
   Future<void> _onCreateCircle(CreateCircle event, Emitter<CircleState> emit) async {
-    emit(CircleLoading());
+    emit(CircleLoading(message: 'Creating circle...'));
+    
     try {
-      await _suiClient.createCircle(event.name, event.contributionAmount);
-      emit(CircleOperationSuccess(message: 'Circle created successfully'));
-      add(LoadCircles());
+      final txBytes = await _suiClient.createCircle(event.name, event.contributionAmount);
+      emit(TransactionPending(
+        message: 'Circle creation transaction ready for signing',
+        transactionBytes: txBytes,
+      ));
     } catch (e) {
-      emit(CircleError(message: e.toString()));
+      emit(CircleError(message: 'Failed to create circle: ${e.toString()}'));
     }
   }
 
   Future<void> _onJoinCircle(JoinCircle event, Emitter<CircleState> emit) async {
-    emit(CircleLoading());
+    emit(CircleLoading(message: 'Joining circle...'));
+    
     try {
-      await _suiClient.joinCircle(event.circleId);
-      emit(CircleOperationSuccess(message: 'Joined circle successfully'));
-      add(LoadCircles());
+      final txBytes = await _suiClient.joinCircle(event.circleId);
+      emit(TransactionPending(
+        message: 'Join circle transaction ready for signing',
+        transactionBytes: txBytes,
+      ));
     } catch (e) {
-      emit(CircleError(message: e.toString()));
+      emit(CircleError(message: 'Failed to join circle: ${e.toString()}'));
     }
   }
 
   Future<void> _onContributeToCircle(ContributeToCircle event, Emitter<CircleState> emit) async {
-    emit(CircleLoading());
+    emit(CircleLoading(message: 'Processing contribution...'));
+    
     try {
-      await _suiClient.contribute(event.vaultId, event.circleId, event.trustScoreId, event.amount);
-      emit(CircleOperationSuccess(message: 'Contribution successful'));
+      final txBytes = await _suiClient.contribute(
+        event.vaultId,
+        event.circleId,
+        event.trustScoreId,
+        event.amount,
+      );
+      emit(TransactionPending(
+        message: 'Contribution transaction ready for signing',
+        transactionBytes: txBytes,
+      ));
+    } catch (e) {
+      emit(CircleError(message: 'Failed to contribute: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onExecutePayout(ExecutePayout event, Emitter<CircleState> emit) async {
+    emit(CircleLoading(message: 'Executing payout...'));
+    
+    try {
+      final txBytes = await _suiClient.executePayout(event.vaultId, event.circleId);
+      emit(TransactionPending(
+        message: 'Payout transaction ready for signing',
+        transactionBytes: txBytes,
+      ));
+    } catch (e) {
+      emit(CircleError(message: 'Failed to execute payout: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onInitializeTrustScore(InitializeTrustScore event, Emitter<CircleState> emit) async {
+    emit(CircleLoading(message: 'Initializing trust score...'));
+    
+    try {
+      final txBytes = await _suiClient.initializeTrustScore();
+      emit(TransactionPending(
+        message: 'Trust score initialization ready for signing',
+        transactionBytes: txBytes,
+      ));
+    } catch (e) {
+      emit(CircleError(message: 'Failed to initialize trust score: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onCreateVault(CreateVault event, Emitter<CircleState> emit) async {
+    emit(CircleLoading(message: 'Creating vault...'));
+    
+    try {
+      final txBytes = await _suiClient.createVault(event.circleId);
+      emit(TransactionPending(
+        message: 'Vault creation ready for signing',
+        transactionBytes: txBytes,
+      ));
+    } catch (e) {
+      emit(CircleError(message: 'Failed to create vault: ${e.toString()}'));
+    }
+  }
+
+  // Helper method to execute signed transaction
+  Future<void> executeSignedTransaction(String txBytes, String signature) async {
+    try {
+      final result = await _suiClient.executeTransaction(txBytes, signature);
+      final digest = result['digest'];
+      
+      // Reload circles to reflect changes
       add(LoadCircles());
     } catch (e) {
-      emit(CircleError(message: e.toString()));
+      // Handle error - in production, you might want to emit an error state
+      print('Transaction execution failed: $e');
     }
   }
 }
