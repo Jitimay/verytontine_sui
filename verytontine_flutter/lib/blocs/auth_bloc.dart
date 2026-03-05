@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../models/models.dart';
+import '../models/auth_models.dart';
 import '../services/zk_login_service.dart';
 import '../services/sui_client_service.dart';
 
@@ -73,7 +74,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       // Perform zkLogin authentication
       emit(AuthLoading(message: 'Signing in with Google...'));
-      final address = await _zkLoginService.signInWithGoogle();
+      final result = await _zkLoginService.signInWithGoogle();
+      
+      // Check if authentication was successful
+      if (!result.success) {
+        // Handle different error types
+        if (result.errorType == AuthErrorType.userCancelled) {
+          // Silent failure - return to initial state
+          emit(AuthInitial());
+          return;
+        }
+        
+        // Show error message for other error types
+        final errorMessage = result.errorType?.userMessage ?? result.errorMessage ?? 'Authentication failed';
+        emit(AuthError(message: errorMessage));
+        return;
+      }
+      
+      // Authentication successful - get the Sui address
+      final address = result.suiAddress!;
       
       // Set user address in Sui client
       _suiClient.setUserAddress(address);

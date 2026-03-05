@@ -10,8 +10,13 @@ import 'screens/create_circle_screen.dart';
 import 'screens/join_circle_screen.dart';
 import 'screens/circle_dashboard_screen.dart';
 import 'screens/contribution_screen.dart';
+import 'utils/config_validator.dart';
 
 void main() {
+  // Validate OAuth configuration on startup
+  // This will print warnings but won't block the app
+  ConfigValidator.printWarnings();
+  
   runApp(const MyApp());
 }
 

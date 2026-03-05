@@ -2,35 +2,55 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:flutter/services.dart';
+import '../config/oauth_config.dart';
+import '../models/auth_models.dart';
 
 class ZkLoginService {
-  static const String _googleClientId = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-  static const String _redirectUri = 'com.verytontine.app:/oauth2redirect';
+  late final GoogleSignIn _googleSignIn;
   
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: _googleClientId,
-    scopes: ['openid', 'email'],
-  );
-  final FlutterAppAuth _appAuth = const FlutterAppAuth();
+  ZkLoginService() {
+    _googleSignIn = GoogleSignIn(
+      clientId: OAuthConfig.androidClientId,
+      scopes: OAuthConfig.requiredScopes,
+    );
+  }
   
   String? _ephemeralPrivateKey;
   String? _randomness;
   int? _maxEpoch;
   String? _nonce;
   
-  Future<String> signInWithGoogle() async {
+  Future<AuthenticationResult> signInWithGoogle() async {
     try {
+      // Validate configuration before attempting sign-in
+      if (!OAuthConfig.isConfigured()) {
+        return AuthenticationResult.failure(
+          errorMessage: OAuthConfig.getConfigurationError() ?? 'Configuration error',
+          errorType: AuthErrorType.configurationError,
+        );
+      }
+      
       // 1. Generate ephemeral keypair and nonce
       await _generateEphemeralData();
       
       // 2. Perform Google Sign-In with nonce
       final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) throw Exception('Google sign-in cancelled');
+      if (googleUser == null) {
+        return AuthenticationResult.failure(
+          errorMessage: '', // Silent failure
+          errorType: AuthErrorType.userCancelled,
+        );
+      }
       
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
-      if (idToken == null) throw Exception('Failed to get ID token');
+      if (idToken == null) {
+        return AuthenticationResult.failure(
+          errorMessage: 'Failed to get authentication token',
+          errorType: AuthErrorType.tokenError,
+        );
+      }
       
       // 3. Derive zkLogin address
       final salt = _generateSalt();
@@ -39,10 +59,62 @@ class ZkLoginService {
       // Store for transaction signing
       await _storeZkLoginData(idToken, salt);
       
-      return zkAddress;
+      return AuthenticationResult.success(
+        suiAddress: zkAddress,
+        idToken: idToken,
+      );
+    } on PlatformException catch (e) {
+      return _handlePlatformException(e);
     } catch (e) {
-      throw Exception('zkLogin failed: $e');
+      return AuthenticationResult.failure(
+        errorMessage: 'Authentication failed: ${e.toString()}',
+        errorType: AuthErrorType.unknown,
+      );
     }
+  }
+  
+  /// Handles platform-specific exceptions from Google Sign-In
+  AuthenticationResult _handlePlatformException(PlatformException error) {
+    // Extract error code from message if present
+    final message = error.message ?? '';
+    
+    // Error code 10: Developer Error (invalid client ID or SHA-1 mismatch)
+    if (error.code == 'sign_in_failed' && message.contains('10:')) {
+      return AuthenticationResult.failure(
+        errorMessage: 'App configuration error. Please contact support.',
+        errorType: AuthErrorType.configurationError,
+      );
+    }
+    
+    // Error code 7: Network Error
+    if (error.code == 'network_error' || message.contains('NETWORK_ERROR')) {
+      return AuthenticationResult.failure(
+        errorMessage: 'Network connection failed. Please check your internet.',
+        errorType: AuthErrorType.networkError,
+      );
+    }
+    
+    // Error code 12501: User cancelled
+    if (error.code == 'sign_in_canceled' || message.contains('12501')) {
+      return AuthenticationResult.failure(
+        errorMessage: '', // Silent failure
+        errorType: AuthErrorType.userCancelled,
+      );
+    }
+    
+    // Error code 8: Internal Error
+    if (message.contains('8:')) {
+      return AuthenticationResult.failure(
+        errorMessage: 'Authentication service unavailable. Please try again.',
+        errorType: AuthErrorType.unknown,
+      );
+    }
+    
+    // Default error handling
+    return AuthenticationResult.failure(
+      errorMessage: 'Authentication failed. Please try again.',
+      errorType: AuthErrorType.unknown,
+    );
   }
   
   Future<void> _generateEphemeralData() async {
@@ -74,7 +146,9 @@ class ZkLoginService {
     
     final input = '$_ephemeralPrivateKey|$_maxEpoch|$_randomness';
     final hash = sha256.convert(utf8.encode(input)).bytes;
-    return base64Url.encode(hash).replaceAll('=', '');
+    final nonce = base64Url.encode(hash).replaceAll('=', '');
+    _nonce = nonce; // Store for potential future use
+    return nonce;
   }
   
   String _generateSalt() {
