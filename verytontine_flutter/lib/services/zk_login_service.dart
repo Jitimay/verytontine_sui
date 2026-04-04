@@ -16,6 +16,7 @@ class ZkLoginService {
   ZkLoginService() {
     _googleSignIn = GoogleSignIn(
       scopes: OAuthConfig.requiredScopes,
+      serverClientId: OAuthConfig.webServerClientId,
     );
   }
   
@@ -58,7 +59,10 @@ class ZkLoginService {
       final idToken = googleAuth.idToken;
       if (idToken == null) {
         return AuthenticationResult.failure(
-          errorMessage: 'Failed to get authentication token',
+          errorMessage: 'Google Sign-In succeeded but no OpenID token was returned.\n\n'
+              'In Google Cloud Console, create an OAuth client of type **Web application** '
+              'in the same project and set `debugWebServerClientId` (or prod) in '
+              'lib/config/oauth_config.dart to that client\'s ID.',
           errorType: AuthErrorType.tokenError,
         );
       }
@@ -98,16 +102,24 @@ class ZkLoginService {
       },
     );
     
-    // Error code 10: Developer Error (invalid client ID or SHA-1 mismatch)
-    if (error.code == 'sign_in_failed' && message.contains('10:')) {
+    // ApiException 10 / DEVELOPER_ERROR: wrong OAuth client, SHA-1, or package name
+    final isDevError = error.code == 'sign_in_failed' &&
+        (message.contains('10') ||
+            message.contains('DEVELOPER_ERROR') ||
+            message.contains('Developer console'));
+    if (isDevError) {
       return AuthenticationResult.failure(
-        errorMessage: 'OAuth Configuration Error:\n\n'
-            '1. Go to: https://console.cloud.google.com/apis/credentials\n'
-            '2. Find your OAuth client ID\n'
-            '3. Add this SHA-1 fingerprint:\n'
-            '   64:7C:92:7C:F0:42:90:7B:38:4C:F0:CD:E5:7F:D5:E3:BF:B8:C0:9C\n'
-            '4. Package name: com.verytontine.verytontine_flutter\n\n'
-            'Error: ${error.message}',
+        errorMessage: 'Google Sign-In: ApiException 10 (DEVELOPER_ERROR).\n\n'
+            'Common fix — wrong ID in Android resources:\n'
+            '• Open android/app/src/main/res/values/strings.xml\n'
+            '• If `default_web_client_id` is set to your **Android** client ID, REMOVE it or '
+            'replace it with a **Web application** OAuth client ID from the same Google Cloud project.\n'
+            '• The Android client ID must ONLY be registered in Console (package + SHA-1), '
+            'not in default_web_client_id.\n'
+            '• Put the same Web client ID in lib/config/oauth_config.dart as debugWebServerClientId.\n\n'
+            'Also verify Android OAuth client: package com.verytontine.verytontine_flutter + '
+            'debug SHA-1 from keytool, then wait a few minutes and reinstall the app.\n\n'
+            'Raw: ${error.code} — $message',
         errorType: AuthErrorType.configurationError,
       );
     }

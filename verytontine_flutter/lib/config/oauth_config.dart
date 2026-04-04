@@ -36,6 +36,11 @@ class OAuthConfig {
   static const String debugAndroidClientId = 
       '427498483720-tdul9p1mvk4ilsaars981m4r553vjivn.apps.googleusercontent.com';
 
+  /// **Web application** OAuth client ID only (Credentials → Web application). Do **not** paste your
+  /// Android or "Desktop/installed" client ID here — that triggers `ApiException: 10` (DEVELOPER_ERROR).
+  /// Leave empty until you create a Web client; sign-in may work without it, then set this if `idToken` is null.
+  static const String debugWebServerClientId = '';
+
   /// Debug iOS OAuth Client ID (optional, for iOS support)
   static const String debugIOSClientId = 
       'YOUR_DEBUG_IOS_CLIENT_ID.apps.googleusercontent.com';
@@ -54,6 +59,8 @@ class OAuthConfig {
   static const String prodAndroidClientId = 
       '427498483720-tdul9p1mvk4ilsaars981m4r553vjivn.apps.googleusercontent.com';
 
+  static const String prodWebServerClientId = '';
+
   /// Production iOS OAuth Client ID (optional, for iOS support)
   static const String prodIOSClientId = 
       'YOUR_PROD_IOS_CLIENT_ID.apps.googleusercontent.com';
@@ -70,6 +77,13 @@ class OAuthConfig {
   /// Returns the appropriate iOS client ID based on environment
   static String get iosClientId {
     return isProduction ? prodIOSClientId : debugIOSClientId;
+  }
+
+  /// Passed to [GoogleSignIn.serverClientId] so Google returns an OpenID ID token on Android.
+  static String? get webServerClientId {
+    final id = isProduction ? prodWebServerClientId : debugWebServerClientId;
+    if (id.isEmpty || id.contains('YOUR_')) return null;
+    return id;
   }
 
   // ============================================================================

@@ -90,8 +90,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           return;
         }
         
-        // Show error message for other error types
-        final errorMessage = result.errorType?.userMessage ?? result.errorMessage ?? 'Authentication failed';
+        // Prefer detailed messages from ZkLoginService (SHA-1, OAuth steps) over generic type labels.
+        final detail = result.errorMessage?.trim();
+        final errorMessage = (detail != null && detail.isNotEmpty)
+            ? detail
+            : (result.errorType?.userMessage ?? 'Authentication failed');
         emit(AuthError(message: errorMessage));
         return;
       }

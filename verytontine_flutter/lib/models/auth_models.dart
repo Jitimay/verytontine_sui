@@ -77,7 +77,7 @@ extension AuthErrorTypeExtension on AuthErrorType {
   String get userMessage {
     switch (this) {
       case AuthErrorType.configurationError:
-        return 'App configuration error. Please contact support.';
+        return 'Sign-in is not set up for this app yet (Google OAuth).';
       case AuthErrorType.signatureMismatch:
         return 'App signature mismatch. Please reinstall the app.';
       case AuthErrorType.networkError:
