@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../widgets/gradient_background.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -40,18 +42,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0A0A0A),
-              Color(0xFF1A1A1A),
-              Color(0xFF0A0A0A),
-            ],
-          ),
-        ),
+      body: GradientBackground(
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -66,14 +57,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       height: 140,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00FF87), Color(0xFF60EFFF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        gradient: AppGradients.accent,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00FF87).withValues(alpha: 0.3),
+                            color: AppColors.accent.withValues(alpha: 0.35),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -108,14 +95,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF00FF87).withValues(alpha: 0.3)),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.35)),
                   ),
                   child: const Text(
-                    'Secure Digital Savings Circles',
+                    'Secure digital savings circles',
                     style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF00FF87),
-                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -128,12 +115,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   height: 56,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(28),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00FF87), Color(0xFF60EFFF)],
-                    ),
+                    gradient: AppGradients.accent,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF00FF87).withValues(alpha: 0.4),
+                        color: AppColors.accent.withValues(alpha: 0.4),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -164,3 +149,4 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     );
   }
 }
+

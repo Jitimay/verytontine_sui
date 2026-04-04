@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/transaction_bloc.dart';
+import '../theme/app_theme.dart';
 import 'transaction_confirmation_dialog.dart';
 
 class TransactionHandler extends StatelessWidget {
@@ -13,9 +14,9 @@ class TransactionHandler extends StatelessWidget {
     return BlocListener<TransactionBloc, TransactionState>(
       listener: (context, state) {
         if (state is TransactionSigning) {
-          _showLoadingDialog(context, 'Signing transaction...');
+          _showLoadingDialog(context, 'Signing with your wallet…');
         } else if (state is TransactionReadyForConfirmation) {
-          Navigator.of(context).pop(); // Close loading dialog
+          Navigator.of(context).pop();
           TransactionConfirmationDialog.show(
             context,
             description: state.description,
@@ -23,13 +24,27 @@ class TransactionHandler extends StatelessWidget {
             transactionBytes: state.transactionBytes,
           );
         } else if (state is TransactionExecuting) {
-          _showLoadingDialog(context, 'Executing transaction...');
+          _showLoadingDialog(context, 'Submitting to Sui…');
         } else if (state is TransactionSuccess) {
-          Navigator.of(context).pop(); // Close loading dialog
-          _showSuccessDialog(context, state.message, state.transactionDigest);
+          Navigator.of(context).pop();
+          _showResultDialog(
+            context,
+            title: 'Done',
+            icon: Icons.check_circle_rounded,
+            iconColor: AppColors.accent,
+            message: state.message,
+            digest: state.transactionDigest,
+          );
         } else if (state is TransactionError) {
-          Navigator.of(context).pop(); // Close loading dialog
-          _showErrorDialog(context, state.message);
+          Navigator.of(context).pop();
+          _showResultDialog(
+            context,
+            title: 'Something went wrong',
+            icon: Icons.error_outline_rounded,
+            iconColor: AppColors.danger,
+            message: state.message,
+            digest: null,
+          );
         }
       },
       child: child,
@@ -37,109 +52,72 @@ class TransactionHandler extends StatelessWidget {
   }
 
   void _showLoadingDialog(BuildContext context, String message) {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        backgroundColor: AppColors.surfaceElevated,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.lg)),
+        content: Row(
           children: [
-            const CircularProgressIndicator(color: Colors.green),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(color: Colors.white),
-            ),
+            const CircularProgressIndicator(color: AppColors.accent, strokeWidth: 2),
+            const SizedBox(width: 20),
+            Expanded(child: Text(message, style: const TextStyle(color: AppColors.textPrimary))),
           ],
         ),
       ),
     );
   }
 
-  void _showSuccessDialog(BuildContext context, String message, String? digest) {
-    showDialog(
+  void _showResultDialog(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required String message,
+    required String? digest,
+  }) {
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Row(
+        backgroundColor: AppColors.surfaceElevated,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Success', style: TextStyle(color: Colors.green)),
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(title, style: TextStyle(color: iconColor, fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              message,
-              style: const TextStyle(color: Colors.white),
-            ),
+            Text(message, style: const TextStyle(color: AppColors.textPrimary)),
             if (digest != null) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'Transaction ID:',
-                style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  digest,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                  ),
+              const SizedBox(height: 14),
+              const Text('Digest', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 6),
+              SelectableText(
+                digest,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
                 ),
               ),
             ],
           ],
         ),
         actions: [
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Row(
-          children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Error', style: TextStyle(color: Colors.red)),
-          ],
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(color: Colors.white),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('OK'),
+            child: const Text('Close'),
           ),
         ],
       ),

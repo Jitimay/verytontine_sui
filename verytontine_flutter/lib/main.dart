@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'blocs/auth_bloc.dart';
-import 'blocs/circle_bloc_new.dart';
+import 'blocs/circle_bloc.dart';
 import 'blocs/transaction_bloc.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -10,25 +10,24 @@ import 'screens/create_circle_screen.dart';
 import 'screens/join_circle_screen.dart';
 import 'screens/circle_dashboard_screen.dart';
 import 'screens/contribution_screen.dart';
+import 'theme/app_theme.dart';
 import 'utils/config_validator.dart';
+import 'widgets/transaction_handler.dart';
 
 void main() {
-  // Validate OAuth configuration on startup
-  // This will print warnings but won't block the app
   ConfigValidator.printWarnings();
-  
-  runApp(const MyApp());
+  runApp(const VeryTontineApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class VeryTontineApp extends StatelessWidget {
+  const VeryTontineApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => AuthBloc()),
-        BlocProvider(create: (context) => CircleBloc()..add(LoadCircles())),
+        BlocProvider(create: (_) => AuthBloc()),
+        BlocProvider(create: (_) => CircleBloc()..add(LoadCircles())),
         BlocProvider(
           create: (context) => TransactionBloc(
             authBloc: context.read<AuthBloc>(),
@@ -36,37 +35,35 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,  
-        title: 'VeryTontine',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.green,
-            brightness: Brightness.dark,
-          ).copyWith(
-            surface: Colors.black,
+      child: TransactionHandler(
+        child: BlocListener<CircleBloc, CircleState>(
+          listenWhen: (prev, curr) => curr is TransactionPending,
+          listener: (context, state) {
+            if (state is TransactionPending) {
+              context.read<TransactionBloc>().add(
+                    SignAndExecuteTransaction(
+                      transactionBytes: state.transactionBytes,
+                      description: state.message,
+                    ),
+                  );
+            }
+          },
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'VeryTontine',
+            theme: buildAppTheme(),
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const SplashScreen(),
+              '/login': (context) => const LoginScreen(),
+              '/home': (context) => const MainNavigationScreen(),
+              '/create-circle': (context) => const CreateCircleScreen(),
+              '/join-circle': (context) => const JoinCircleScreen(),
+              '/circle-dashboard': (context) => const CircleDashboardScreen(),
+              '/contribution': (context) => const ContributionScreen(),
+            },
           ),
-          scaffoldBackgroundColor: Colors.black,
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-          ),
-          cardTheme: const CardThemeData(
-            color: Color(0xFF1E1E1E),
-            elevation: 4,
-          ),
-          useMaterial3: true,
         ),
-        initialRoute: '/',
-        routes: {
-          '/': (context) => const SplashScreen(),
-          '/login': (context) => const LoginScreen(),
-          '/home': (context) => const MainNavigationScreen(),
-          '/create-circle': (context) => const CreateCircleScreen(),
-          '/join-circle': (context) => const JoinCircleScreen(),
-          '/circle-dashboard': (context) => const CircleDashboardScreen(),
-          '/contribution': (context) => const ContributionScreen(),
-        },
       ),
     );
   }

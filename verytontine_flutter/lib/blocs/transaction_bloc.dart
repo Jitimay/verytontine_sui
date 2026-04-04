@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'auth_bloc.dart';
-import 'circle_bloc_new.dart';
+import 'circle_bloc.dart';
 
 // Events
 abstract class TransactionEvent extends Equatable {
@@ -136,13 +136,11 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     emit(TransactionExecuting());
     
     try {
-      // Execute transaction through CircleBloc
-      await circleBloc.executeSignedTransaction(
-        event.transactionBytes,
-        event.signature,
-      );
-      
-      // Wait for execution result
+      circleBloc.add(SubmitSignedTransaction(
+        transactionBytes: event.transactionBytes,
+        signature: event.signature,
+      ));
+
       await for (final circleState in circleBloc.stream) {
         if (circleState is CircleOperationSuccess) {
           emit(TransactionSuccess(

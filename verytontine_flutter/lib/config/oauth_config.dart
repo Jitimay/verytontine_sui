@@ -1,3 +1,5 @@
+library oauth_config;
+
 /// OAuth Configuration for VeryTontine
 /// 
 /// This file contains Google OAuth client IDs for different environments.
@@ -7,6 +9,8 @@
 /// 2. Get credentials from: https://console.cloud.google.com/apis/credentials
 /// 3. Never commit real credentials to version control
 /// 4. Add this file to .gitignore for production apps
+
+import '../utils/auth_logger.dart';
 
 class OAuthConfig {
   /// Determines if the app is running in production mode
@@ -28,8 +32,9 @@ class OAuthConfig {
   /// 3. Package name: com.verytontine.verytontine_flutter
   /// 4. SHA-1: Get from debug keystore using:
   ///    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+  /// Current SHA-1: 64:7C:92:7C:F0:42:90:7B:38:4C:F0:CD:E5:7F:D5:E3:BF:B8:C0:9C
   static const String debugAndroidClientId = 
-      'YOUR_DEBUG_CLIENT_ID.apps.googleusercontent.com';
+      '427498483720-tdul9p1mvk4ilsaars981m4r553vjivn.apps.googleusercontent.com';
 
   /// Debug iOS OAuth Client ID (optional, for iOS support)
   static const String debugIOSClientId = 
@@ -43,11 +48,11 @@ class OAuthConfig {
   /// 
   /// To get this:
   /// 1. Generate release keystore (if not exists)
-  /// 2. Get SHA-1 from release keystore
+  /// 2. Get SHA-1 from release keystore: 66:C0:10:43:81:24:DA:D7:28:FE:EE:59:E8:CA:23:38:DF:D1:94:6B
   /// 3. Create separate OAuth client ID in Google Cloud Console
   /// 4. Use release SHA-1 fingerprint
   static const String prodAndroidClientId = 
-      'YOUR_PROD_CLIENT_ID.apps.googleusercontent.com';
+      '427498483720-tdul9p1mvk4ilsaars981m4r553vjivn.apps.googleusercontent.com';
 
   /// Production iOS OAuth Client ID (optional, for iOS support)
   static const String prodIOSClientId = 
@@ -77,22 +82,20 @@ class OAuthConfig {
   static bool isConfigured() {
     final clientId = androidClientId;
     
-    // Check if still using placeholder
-    if (clientId.contains('YOUR_') || clientId.contains('CLIENT_ID')) {
-      return false;
-    }
+    AuthLogger.d('Validating OAuth Config', context: {
+      'clientId': clientId,
+      'isEmpty': clientId.isEmpty,
+      'hasValidSuffix': clientId.endsWith('.apps.googleusercontent.com'),
+    });
     
-    // Check if format is valid (should end with .apps.googleusercontent.com)
-    if (!clientId.endsWith('.apps.googleusercontent.com')) {
-      return false;
-    }
+    // Check if not empty and has valid format
+    final isValid = clientId.isNotEmpty && 
+                   clientId.endsWith('.apps.googleusercontent.com') &&
+                   !clientId.contains('YOUR_') &&
+                   !clientId.contains('PLACEHOLDER');
     
-    // Check if not empty
-    if (clientId.isEmpty) {
-      return false;
-    }
-    
-    return true;
+    AuthLogger.d('OAuth Config validation result', context: {'isValid': isValid});
+    return isValid;
   }
 
   /// Returns a descriptive error message if configuration is invalid

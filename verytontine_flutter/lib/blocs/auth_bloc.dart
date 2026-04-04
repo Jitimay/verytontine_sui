@@ -20,6 +20,9 @@ class SignTransaction extends AuthEvent {
   List<Object> get props => [transactionBytes];
 }
 
+/// Refetch trust score / object id after on-chain changes (e.g. new TrustScore object).
+class ReloadTrustProfile extends AuthEvent {}
+
 // States
 abstract class AuthState extends Equatable {
   @override
@@ -61,11 +64,13 @@ class TransactionSigned extends AuthState {
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ZkLoginService _zkLoginService = ZkLoginService();
   final SuiClientService _suiClient = SuiClientService();
+  User? _sessionUser;
 
   AuthBloc() : super(AuthInitial()) {
     on<ZkLoginRequested>(_onZkLoginRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<SignTransaction>(_onSignTransaction);
+    on<ReloadTrustProfile>(_onReloadTrustProfile);
   }
 
   Future<void> _onZkLoginRequested(ZkLoginRequested event, Emitter<AuthState> emit) async {
@@ -100,15 +105,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Get user trust score
       emit(AuthLoading(message: 'Loading user data...'));
       final trustScore = await _suiClient.getUserTrustScore();
-      
-      // Create authenticated user
+      final trustScoreObjectId = await _suiClient.getUserTrustScoreObjectId();
+
       final user = User(
         id: address,
         name: 'zkUser',
         address: address,
         trustScore: trustScore,
+        trustScoreObjectId: trustScoreObjectId,
       );
-      
+      _sessionUser = user;
+
       emit(AuthAuthenticated(user: user));
     } catch (e) {
       emit(AuthError(message: 'Authentication failed: ${e.toString()}'));
@@ -116,7 +123,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onSignTransaction(SignTransaction event, Emitter<AuthState> emit) async {
-    emit(AuthLoading(message: 'Signing transaction...'));
+    emit(AuthLoading(message: 'Signing transaction…'));
     
     try {
       final signature = await _zkLoginService.signTransaction(event.transactionBytes);
@@ -124,16 +131,42 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         signature: signature,
         transactionBytes: event.transactionBytes,
       ));
+      if (_sessionUser != null) {
+        emit(AuthAuthenticated(user: _sessionUser!));
+      }
     } catch (e) {
       emit(AuthError(message: 'Transaction signing failed: ${e.toString()}'));
+      if (_sessionUser != null) {
+        emit(AuthAuthenticated(user: _sessionUser!));
+      }
+    }
+  }
+
+  Future<void> _onReloadTrustProfile(ReloadTrustProfile event, Emitter<AuthState> emit) async {
+    if (_sessionUser == null) return;
+    try {
+      _suiClient.setUserAddress(_sessionUser!.address);
+      final trustScore = await _suiClient.getUserTrustScore();
+      final trustScoreObjectId = await _suiClient.getUserTrustScoreObjectId();
+      _sessionUser = User(
+        id: _sessionUser!.id,
+        address: _sessionUser!.address,
+        name: _sessionUser!.name,
+        trustScore: trustScore,
+        trustScoreObjectId: trustScoreObjectId,
+      );
+      emit(AuthAuthenticated(user: _sessionUser!));
+    } catch (_) {
+      /* keep previous session */
     }
   }
 
   Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
-    emit(AuthLoading(message: 'Signing out...'));
+    emit(AuthLoading(message: 'Signing out…'));
     
     try {
       await _zkLoginService.signOut();
+      _sessionUser = null;
       emit(AuthInitial());
     } catch (e) {
       emit(AuthError(message: 'Logout failed: ${e.toString()}'));

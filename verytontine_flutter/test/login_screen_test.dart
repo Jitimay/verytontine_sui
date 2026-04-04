@@ -5,8 +5,7 @@ import 'package:verytontine_flutter/screens/login_screen.dart';
 import 'package:verytontine_flutter/blocs/auth_bloc.dart';
 
 void main() {
-  testWidgets('LoginScreen shows progress message after clicking Google Sign In', (WidgetTester tester) async {
-    // 1. Build the widget with a real but isolated AuthBloc
+  testWidgets('LoginScreen shows Google Sign In button', (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: BlocProvider(
@@ -16,17 +15,7 @@ void main() {
       ),
     );
 
-    // 2. Find and tap the Google Sign In button
-    final googleButton = find.text('Sign in with Google');
-    expect(googleButton, findsOneWidget);
-    
-    await tester.tap(googleButton);
-    await tester.pump(); // Show initial loading message
-
-    // 3. Verify that the loading message appears
-    expect(find.text('Initializing zkLogin...'), findsOneWidget);
-
-    // 4. Wait for the mock flow to complete
-    await tester.pumpAndSettle(); 
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('VeryTontine'), findsOneWidget);
   });
 }

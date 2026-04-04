@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../blocs/auth_bloc.dart';
 import '../blocs/circle_bloc.dart';
+import '../blocs/transaction_bloc.dart';
+import '../theme/app_theme.dart';
+import '../utils/sui_format.dart';
+import '../widgets/app_page_header.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/gradient_background.dart';
 
 class CreateCircleScreen extends StatefulWidget {
   const CreateCircleScreen({super.key});
@@ -10,20 +15,17 @@ class CreateCircleScreen extends StatefulWidget {
   State<CreateCircleScreen> createState() => _CreateCircleScreenState();
 }
 
-class _CreateCircleScreenState extends State<CreateCircleScreen> with TickerProviderStateMixin {
+class _CreateCircleScreenState extends State<CreateCircleScreen> with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
-  final _membersController = TextEditingController();
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  late final AnimationController _fadeController;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
-    );
+    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
+    _fade = CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic);
     _fadeController.forward();
   }
 
@@ -32,266 +34,125 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> with TickerProv
     _fadeController.dispose();
     _nameController.dispose();
     _amountController.dispose();
-    _membersController.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    final mist = SuiFormat.suiInputToMist(_amountController.text);
+    if (name.isEmpty || mist == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a name and a valid contribution in SUI.')),
+      );
+      return;
+    }
+    context.read<CircleBloc>().add(CreateCircle(name: name, contributionAmount: mist));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0A0A0A),
-              Color(0xFF1A1A1A),
-              Color(0xFF0A0A0A),
-            ],
-          ),
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<CircleBloc, CircleState>(
+          listener: (context, state) {
+            if (state is CircleError) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+            }
+          },
         ),
-        child: SafeArea(
-          child: BlocListener<CircleBloc, CircleState>(
-            listener: (context, state) {
-              if (state is CircleLoaded) {
-                Navigator.pop(context);
-              }
-            },
+        BlocListener<TransactionBloc, TransactionState>(
+          listenWhen: (p, c) => c is TransactionSuccess,
+          listener: (context, state) {
+            if (Navigator.canPop(context)) Navigator.pop(context);
+          },
+        ),
+      ],
+      child: GradientBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
             child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
+              opacity: _fade,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  // Custom App Bar
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
+                  const AppPageHeader(
+                    title: 'New circle',
+                    subtitle: 'Fixed contribution per round · on-chain on Sui testnet',
+                  ),
+                  GlassCard(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.white.withValues(alpha: 0.1),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.groups_rounded, color: AppColors.accent, size: 26),
                             ),
-                            child: const Icon(Icons.arrow_back, color: Colors.white),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                'Members join on-chain after you share the circle object ID.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        TextField(
+                          controller: _nameController,
+                          style: const TextStyle(color: AppColors.textPrimary),
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Circle name',
+                            hintText: 'e.g. Family savings',
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        const Text(
-                          'Create Circle',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: AppColors.textPrimary),
+                          decoration: const InputDecoration(
+                            labelText: 'Contribution per round',
+                            hintText: 'e.g. 0.5',
+                            suffixText: 'SUI',
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '1 SUI = ${SuiFormat.mistPerSui} MIST. Everyone pays this exact amount each round.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
                         ),
                       ],
                     ),
                   ),
-                  
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          // Header Icon
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF00FF87), Color(0xFF60EFFF)],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF00FF87).withValues(alpha: 0.3),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.group_add,
-                              size: 40,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          
-                          const Text(
-                            'Start Your Savings Circle',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Create a secure group for community savings',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-                          
-                          // Form Fields
-                          _buildGlassTextField(
-                            controller: _nameController,
-                            label: 'Circle Name',
-                            icon: Icons.group,
-                            hint: 'e.g., Family Savings',
-                          ),
-                          const SizedBox(height: 20),
-                          
-                          _buildGlassTextField(
-                            controller: _amountController,
-                            label: 'Contribution Amount (\$)',
-                            icon: Icons.attach_money,
-                            hint: 'e.g., 100',
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 20),
-                          
-                          _buildGlassTextField(
-                            controller: _membersController,
-                            label: 'Member Addresses',
-                            icon: Icons.people,
-                            hint: 'One address per line',
-                            maxLines: 4,
-                          ),
-                          const SizedBox(height: 40),
-                          
-                          // Create Button
-                          BlocBuilder<CircleBloc, CircleState>(
-                            builder: (context, circleState) {
-                              return BlocBuilder<AuthBloc, AuthState>(
-                                builder: (context, authState) {
-                                  return Container(
-                                    width: double.infinity,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF00FF87), Color(0xFF60EFFF)],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF00FF87).withValues(alpha: 0.4),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 8),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton.icon(
-                                      onPressed: circleState is CircleLoading ? null : () {
-                                        if (_nameController.text.isNotEmpty &&
-                                            _amountController.text.isNotEmpty &&
-                                            authState is AuthAuthenticated) {
-                                          final members = [
-                                            authState.user.address,
-                                            ..._membersController.text
-                                                .split('\n')
-                                                .where((m) => m.trim().isNotEmpty)
-                                                .map((m) => m.trim()),
-                                          ];
-                                          
-                                          context.read<CircleBloc>().add(
-                                                CreateCircle(
-                                                  name: _nameController.text,
-                                                  contributionAmount: double.parse(_amountController.text),
-                                                  members: members,
-                                                ),
-                                              );
-                                        }
-                                      },
-                                      icon: circleState is CircleLoading 
-                                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                                        : const Icon(Icons.create, color: Colors.black),
-                                      label: const Text(
-                                        'Create Circle',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+                  const SizedBox(height: 20),
+                  BlocBuilder<CircleBloc, CircleState>(
+                    builder: (context, state) {
+                      final busy = state is CircleLoading;
+                      return FilledButton(
+                        onPressed: busy ? null : _submit,
+                        child: busy
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                              )
+                            : const Text('Continue'),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? hint,
-    TextInputType? keyboardType,
-    int maxLines = 1,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
-        ),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.1),
-            Colors.white.withValues(alpha: 0.05),
-          ],
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00FF87).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: const Color(0xFF00FF87), size: 20),
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(20),
         ),
       ),
     );

@@ -5,18 +5,22 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/services.dart';
 import '../config/oauth_config.dart';
 import '../models/auth_models.dart';
+import '../utils/auth_logger.dart';
+import 'secure_storage_service.dart';
+import 'ed25519_crypto_service.dart';
+import 'session_manager.dart';
 
 class ZkLoginService {
   late final GoogleSignIn _googleSignIn;
   
   ZkLoginService() {
     _googleSignIn = GoogleSignIn(
-      clientId: OAuthConfig.androidClientId,
       scopes: OAuthConfig.requiredScopes,
     );
   }
   
   String? _ephemeralPrivateKey;
+  String? _ephemeralPublicKey;
   String? _randomness;
   int? _maxEpoch;
   String? _nonce;
@@ -31,12 +35,19 @@ class ZkLoginService {
         );
       }
       
+      AuthLogger.i('Starting zkLogin', context: {
+        'clientId': OAuthConfig.androidClientId,
+        'package': 'com.verytontine.verytontine_flutter',
+      });
+      
       // 1. Generate ephemeral keypair and nonce
       await _generateEphemeralData();
       
       // 2. Perform Google Sign-In with nonce
+      AuthLogger.d('Attempting Google Sign-In...');
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
+        AuthLogger.d('User cancelled sign-in');
         return AuthenticationResult.failure(
           errorMessage: '', // Silent failure
           errorType: AuthErrorType.userCancelled,
@@ -78,10 +89,25 @@ class ZkLoginService {
     // Extract error code from message if present
     final message = error.message ?? '';
     
+    AuthLogger.e(
+      'Google Sign-In Error',
+      error: error,
+      context: {
+        'code': error.code,
+        'message': message,
+      },
+    );
+    
     // Error code 10: Developer Error (invalid client ID or SHA-1 mismatch)
     if (error.code == 'sign_in_failed' && message.contains('10:')) {
       return AuthenticationResult.failure(
-        errorMessage: 'App configuration error. Please contact support.',
+        errorMessage: 'OAuth Configuration Error:\n\n'
+            '1. Go to: https://console.cloud.google.com/apis/credentials\n'
+            '2. Find your OAuth client ID\n'
+            '3. Add this SHA-1 fingerprint:\n'
+            '   64:7C:92:7C:F0:42:90:7B:38:4C:F0:CD:E5:7F:D5:E3:BF:B8:C0:9C\n'
+            '4. Package name: com.verytontine.verytontine_flutter\n\n'
+            'Error: ${error.message}',
         errorType: AuthErrorType.configurationError,
       );
     }
@@ -110,18 +136,21 @@ class ZkLoginService {
       );
     }
     
-    // Default error handling
+    // Default error handling with detailed info
     return AuthenticationResult.failure(
-      errorMessage: 'Authentication failed. Please try again.',
+      errorMessage: 'Authentication failed.\n\n'
+          'Error Code: ${error.code}\n'
+          'Message: $message\n\n'
+          'If this persists, check OAuth configuration.',
       errorType: AuthErrorType.unknown,
     );
   }
   
   Future<void> _generateEphemeralData() async {
-    // Generate random private key (32 bytes)
-    final random = Random.secure();
-    final privateKeyBytes = List<int>.generate(32, (i) => random.nextInt(256));
-    _ephemeralPrivateKey = base64Url.encode(privateKeyBytes);
+    // Generate Ed25519 key pair
+    final (privateKey, publicKey) = await Ed25519CryptoService.generateKeyPair();
+    _ephemeralPrivateKey = privateKey;
+    _ephemeralPublicKey = publicKey;
     
     // Generate randomness
     _randomness = _generateRandomness();
@@ -131,6 +160,12 @@ class ZkLoginService {
     
     // Generate nonce
     _nonce = _generateNonce();
+    
+    AuthLogger.d('Generated ephemeral data', context: {
+      'maxEpoch': _maxEpoch,
+      'hasPrivateKey': _ephemeralPrivateKey != null,
+      'hasPublicKey': _ephemeralPublicKey != null,
+    });
   }
   
   String _generateRandomness() {
@@ -195,9 +230,20 @@ class ZkLoginService {
   }
   
   Future<void> _storeZkLoginData(String jwt, String salt) async {
-    // Store zkLogin data for transaction signing
-    // In production, use secure storage
-    // For now, keep in memory
+    await SecureStorageService.storeEphemeralKey(_ephemeralPrivateKey!);
+    
+    final address = _computeZkLoginAddress(jwt, salt);
+    
+    // Store session using SessionManager
+    final sessionManager = SessionManager();
+    await sessionManager.storeSession(
+      jwt: jwt,
+      salt: salt,
+      ephemeralKey: _ephemeralPrivateKey!,
+      suiAddress: address,
+    );
+    
+    AuthLogger.i('zkLogin data stored', context: {'address': address});
   }
   
   Future<String> signTransaction(String txBytes) async {
@@ -221,6 +267,7 @@ class ZkLoginService {
   
   Future<void> signOut() async {
     await _googleSignIn.signOut();
+    await SecureStorageService.clearAll();
     _ephemeralPrivateKey = null;
     _randomness = null;
     _maxEpoch = null;

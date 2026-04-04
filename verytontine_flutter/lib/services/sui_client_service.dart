@@ -243,7 +243,28 @@ class SuiClientService {
       return 0;
     }
   }
-  
+
+  /// Object id of the user's on-chain `TrustScore`, if it exists.
+  Future<String?> getUserTrustScoreObjectId() async {
+    if (_userAddress == null) return null;
+    try {
+      final result = await _rpcCall('suix_getOwnedObjects', [
+        _userAddress,
+        {
+          'filter': {
+            'StructType': '$_packageId::trust_score::TrustScore',
+          },
+          'options': {'showContent': true},
+        },
+      ]);
+      final objects = result['data'] as List;
+      if (objects.isEmpty) return null;
+      return objects.first['data']?['objectId'] as String?;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<double> getVaultBalance(String vaultId) async {
     try {
       final result = await _rpcCall('sui_getObject', [

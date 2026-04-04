@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/auth_bloc.dart';
+import '../theme/app_theme.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/gradient_background.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,19 +12,17 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  late final AnimationController _fadeController;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(duration: const Duration(milliseconds: 1000), vsync: this);
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
-    );
+    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _fade = CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic);
     _fadeController.forward();
   }
 
@@ -35,228 +36,146 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0A0A0A),
-              Color(0xFF1A1A1A),
-              Color(0xFF0A0A0A),
-            ],
-          ),
-        ),
-        child: SafeArea(
+    return GradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
           child: BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state is AuthAuthenticated) {
                 Navigator.pushReplacementNamed(context, '/home');
               }
             },
-            child: SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
-                ),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00FF87), Color(0xFF60EFFF)],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF00FF87).withValues(alpha: 0.3),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.account_balance_wallet,
-                        size: 60,
-                        color: Colors.black,
+            child: FadeTransition(
+              opacity: _fade,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Container(
+                        width: 96,
+                        height: 96,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppGradients.accent),
+                        child: const Icon(Icons.savings_rounded, size: 48, color: Colors.black),
                       ),
                     ),
-                    const SizedBox(height: 40),
-                    const Text(
-                      'Welcome to VeryTontine',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    const SizedBox(height: 28),
+                    Text(
+                      'VeryTontine',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Community savings on Sui — transparent rounds, shared vault, on-chain trust.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 36),
+                    FilledButton.icon(
+                      onPressed: () => context.read<AuthBloc>().add(ZkLoginRequested()),
+                      icon: const Icon(Icons.login_rounded, size: 20),
+                      label: const Text('Continue with Google'),
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF00FF87).withValues(alpha: 0.3)),
-                      ),
-                      child: const Text(
-                        'Secure community savings on Sui blockchain',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF00FF87),
-                        ),
-                      ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.read<AuthBloc>().add(ZkLoginRequested()),
+                      icon: const Icon(Icons.person_add_rounded, size: 20),
+                      label: const Text('Create zkLogin account'),
                     ),
-                    const SizedBox(height: 50),
-                    
-                    // Quick Sign In Buttons
-                    _buildGlassButton(
-                      'Sign in with Google',
-                      Icons.login,
-                      const LinearGradient(colors: [Colors.white, Colors.grey]),
-                      Colors.black,
-                      () => context.read<AuthBloc>().add(ZkLoginRequested()),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGlassButton(
-                      'Create Account',
-                      Icons.person_add,
-                      LinearGradient(colors: [Colors.white.withValues(alpha: 0.1), Colors.white.withValues(alpha: 0.05)]),
-                      const Color(0xFF00FF87),
-                      () => context.read<AuthBloc>().add(ZkLoginRequested()),
-                      isOutlined: true,
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Progress Indicator for zkLogin steps
+                    const SizedBox(height: 28),
                     BlocBuilder<AuthBloc, AuthState>(
                       builder: (context, state) {
                         if (state is AuthLoading && state.message != null) {
-                          return Column(
-                            children: [
-                              const CircularProgressIndicator(color: Color(0xFF00FF87)),
-                              const SizedBox(height: 12),
-                              Text(
-                                state.message!,
-                                style: const TextStyle(color: Color(0xFF00FF87), fontSize: 13),
-                              ),
-                            ],
+                          return GlassCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    state.message!,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         }
                         if (state is AuthError) {
-                          return Text(
-                            state.message,
-                            style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                          return GlassCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    state.message,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: AppColors.danger,
+                                          fontSize: 13,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         }
                         return const SizedBox.shrink();
                       },
                     ),
-                    const SizedBox(height: 40),
-                    
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.white.withValues(alpha: 0.05),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: const Text(
-                        'No crypto knowledge needed\nJust save with your community',
+                    const SizedBox(height: 24),
+                    GlassCard(
+                      padding: const EdgeInsets.all(18),
+                      child: Text(
+                        'No seed phrase to manage — zkLogin ties this app to your Google account and a Sui address.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
                       ),
                     ),
-                    const SizedBox(height: 30),
-                    
-                    // Manual Entry (Hidden by default)
-                    ExpansionTile(
-                      title: Text(
-                        'Manual Entry',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
-                      ),
-                      iconColor: Colors.white.withValues(alpha: 0.7),
-                      collapsedIconColor: Colors.white.withValues(alpha: 0.7),
-                      children: [
-                        const SizedBox(height: 16),
-                        _buildGlassTextField(_nameController, 'Your Name', Icons.person),
-                        const SizedBox(height: 16),
-                        _buildGlassTextField(_addressController, 'Wallet Address', Icons.account_balance_wallet),
-                        const SizedBox(height: 24),
-                        BlocBuilder<AuthBloc, AuthState>(
-                          builder: (context, state) {
-                            return _buildGlassButton(
-                              'Connect Wallet',
-                              Icons.link,
-                              const LinearGradient(colors: [Color(0xFF00FF87), Color(0xFF60EFFF)]),
-                              Colors.black,
-                              state is AuthLoading ? null : () {
-                                if (_nameController.text.isNotEmpty && _addressController.text.isNotEmpty) {
-                                  context.read<AuthBloc>().add(ZkLoginRequested());
-                                }
-                              },
-                              isLoading: state is AuthLoading,
-                            );
-                          },
+                    const SizedBox(height: 16),
+                    Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        title: Text(
+                          'Advanced · manual address',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.textSecondary),
                         ),
-                      ],
+                        children: [
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(labelText: 'Display label'),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _addressController,
+                            decoration: const InputDecoration(labelText: 'Wallet address (optional)'),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Full zkLogin still uses Google; this section is for local testing only.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11),
+                          ),
+                        ],
+                      ),
                     ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassButton(String text, IconData icon, Gradient gradient, Color textColor, VoidCallback? onPressed, {bool isOutlined = false, bool isLoading = false}) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: isOutlined ? null : gradient,
-        border: isOutlined ? Border.all(color: const Color(0xFF00FF87), width: 1) : null,
-      ),
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Icon(icon, color: textColor),
-        label: Text(text, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassTextField(TextEditingController controller, String label, IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-          prefixIcon: Icon(icon, color: const Color(0xFF00FF87)),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
         ),
       ),
     );

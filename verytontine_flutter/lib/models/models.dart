@@ -9,6 +9,8 @@ class Circle extends Equatable {
   final int roundIndex;
   final double vaultBalance;
   final List<String> payoutOrder;
+  /// First vault object id for this circle, if known (from chain indexers / events).
+  final String? vaultId;
 
   const Circle({
     required this.id,
@@ -19,6 +21,7 @@ class Circle extends Equatable {
     required this.roundIndex,
     required this.vaultBalance,
     required this.payoutOrder,
+    this.vaultId,
   });
 
   static Circle fromSuiObject(dynamic obj) {
@@ -34,6 +37,7 @@ class Circle extends Equatable {
         roundIndex: int.tryParse(fields['round_index']?.toString() ?? '0') ?? 0,
         vaultBalance: 0.0, // Will be fetched separately
         payoutOrder: List<String>.from(fields['payout_order'] ?? []),
+        vaultId: null,
       );
     } catch (e) {
       return Circle(
@@ -45,12 +49,13 @@ class Circle extends Equatable {
         roundIndex: 0,
         vaultBalance: 0.0,
         payoutOrder: [],
+        vaultId: null,
       );
     }
   }
 
   @override
-  List<Object> get props => [id, name, creator, members, contributionAmount, roundIndex, vaultBalance, payoutOrder];
+  List<Object?> get props => [id, name, creator, members, contributionAmount, roundIndex, vaultBalance, payoutOrder, vaultId];
 }
 
 class User extends Equatable {
@@ -58,16 +63,18 @@ class User extends Equatable {
   final String address;
   final String name;
   final int trustScore;
+  final String? trustScoreObjectId;
 
   const User({
     required this.id,
     required this.address,
     required this.name,
     this.trustScore = 0,
+    this.trustScoreObjectId,
   });
 
   @override
-  List<Object> get props => [id, address, name, trustScore];
+  List<Object?> get props => [id, address, name, trustScore, trustScoreObjectId];
 }
 
 class ContributionRecord extends Equatable {

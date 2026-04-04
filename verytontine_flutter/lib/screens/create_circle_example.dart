@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../blocs/circle_bloc_new.dart';
-import '../blocs/transaction_bloc.dart';
+import '../blocs/circle_bloc.dart';
 import '../widgets/transaction_handler.dart';
 
 class CreateCircleExample extends StatefulWidget {
@@ -23,72 +22,58 @@ class _CreateCircleExampleState extends State<CreateCircleExample> {
           title: const Text('Create Circle'),
           backgroundColor: Colors.black,
         ),
-        body: BlocListener<CircleBloc, CircleState>(
-          listener: (context, state) {
-            if (state is TransactionPending) {
-              // Trigger transaction signing
-              context.read<TransactionBloc>().add(
-                SignAndExecuteTransaction(
-                  transactionBytes: state.transactionBytes,
-                  description: state.message,
-                ),
-              );
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _nameController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Circle Name',
-                    labelStyle: TextStyle(color: Colors.green),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                controller: _nameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Circle Name',
+                  labelStyle: TextStyle(color: Colors.green),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.green),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.green),
                   ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _amountController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Contribution Amount (SUI)',
-                    labelStyle: TextStyle(color: Colors.green),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Contribution Amount (SUI)',
+                  labelStyle: TextStyle(color: Colors.green),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.green),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.green),
                   ),
                 ),
-                const SizedBox(height: 24),
-                BlocBuilder<CircleBloc, CircleState>(
-                  builder: (context, state) {
-                    final isLoading = state is CircleLoading;
-                    
-                    return ElevatedButton(
-                      onPressed: isLoading ? null : _createCircle,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                      child: isLoading
-                          ? const CircularProgressIndicator(color: Colors.black)
-                          : const Text('Create Circle'),
-                    );
-                  },
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+              BlocBuilder<CircleBloc, CircleState>(
+                builder: (context, state) {
+                  final isLoading = state is CircleLoading;
+                  return ElevatedButton(
+                    onPressed: isLoading ? null : _createCircle,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.black)
+                        : const Text('Create Circle'),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import '../config/oauth_config.dart';
+import './auth_logger.dart';
 
 /// Result of configuration validation
 class ConfigValidationResult {
@@ -95,11 +96,10 @@ class ConfigValidator {
   static void printWarnings() {
     final result = validateOAuthConfig();
     if (result.warnings.isNotEmpty) {
-      print('⚠️  Configuration Warnings:');
+      AuthLogger.w('Configuration Warnings');
       for (final warning in result.warnings) {
-        print('   - $warning');
+        AuthLogger.w('  - $warning');
       }
-      print('');
     }
   }
 }

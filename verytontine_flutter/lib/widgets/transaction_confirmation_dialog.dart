@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/transaction_bloc.dart';
+import '../theme/app_theme.dart';
 
 class TransactionConfirmationDialog extends StatelessWidget {
   final String description;
@@ -18,81 +19,89 @@ class TransactionConfirmationDialog extends StatelessWidget {
     this.onCancel,
   });
 
+  static String _preview(String value, int max) {
+    if (value.length <= max) return value;
+    return '${value.substring(0, max)}…';
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E1E1E),
-      title: const Text(
-        'Confirm Transaction',
-        style: TextStyle(color: Colors.white),
+      backgroundColor: AppColors.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        side: const BorderSide(color: AppColors.border),
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      title: Row(
         children: [
-          Text(
-            description,
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Transaction Details:',
-            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+          Icon(Icons.fingerprint_rounded, color: AppColors.accent.withValues(alpha: 0.9)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Confirm on-chain action',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Signature: ${signature.substring(0, 20)}...',
-                  style: const TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'TX Bytes: ${transactionBytes.substring(0, 20)}...',
-                  style: const TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Please review the transaction details before confirming.',
-            style: TextStyle(color: Colors.orange, fontSize: 12),
           ),
         ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              description,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You are about to submit a transaction to Sui testnet. This may move SUI from your wallet and cannot be undone from the app.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: SelectableText(
+                'Payload preview\n${_preview(transactionBytes, 48)}',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  height: 1.35,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Signature ${_preview(signature, 32)}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11, fontFamily: 'monospace'),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
           onPressed: onCancel ?? () => Navigator.of(context).pop(),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: Colors.grey),
-          ),
+          child: const Text('Cancel'),
         ),
-        ElevatedButton(
+        FilledButton(
           onPressed: () {
             context.read<TransactionBloc>().add(
-              ConfirmTransaction(
-                signature: signature,
-                transactionBytes: transactionBytes,
-              ),
-            );
+                  ConfirmTransaction(
+                    signature: signature,
+                    transactionBytes: transactionBytes,
+                  ),
+                );
             onConfirm?.call();
             Navigator.of(context).pop();
           },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.black,
-          ),
-          child: const Text('Confirm'),
+          child: const Text('Submit'),
         ),
       ],
     );
@@ -106,7 +115,7 @@ class TransactionConfirmationDialog extends StatelessWidget {
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
   }) {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => TransactionConfirmationDialog(
