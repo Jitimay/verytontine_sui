@@ -36,10 +36,20 @@ class OAuthConfig {
   static const String debugAndroidClientId = 
       '427498483720-tdul9p1mvk4ilsaars981m4r553vjivn.apps.googleusercontent.com';
 
-  /// **Web application** OAuth client ID only (Credentials → Web application). Do **not** paste your
-  /// Android or "Desktop/installed" client ID here — that triggers `ApiException: 10` (DEVELOPER_ERROR).
-  /// Leave empty until you create a Web client; sign-in may work without it, then set this if `idToken` is null.
-  static const String debugWebServerClientId = '';
+  /// **Web application** OAuth client ID (Google Cloud → Credentials → Create → **Web application**).
+  /// Must be a **different** credential than your Android client (different client id string).
+  /// Do **not** paste the Android or Desktop client ID here (ApiException 10).
+  ///
+  /// Or pass at run time (same value):
+  /// `flutter run --dart-define=WEB_SERVER_CLIENT_ID=YOUR_WEB_ID.apps.googleusercontent.com`
+  static const String debugWebServerClientId =
+      '427498483720-8vc95snm3dqsv68rfit4edpigp8l8e0p.apps.googleusercontent.com';
+
+  /// Non-empty value from `--dart-define=WEB_SERVER_CLIENT_ID=...` (takes precedence over [debugWebServerClientId]).
+  static const String webServerClientIdFromEnv = String.fromEnvironment(
+    'WEB_SERVER_CLIENT_ID',
+    defaultValue: '',
+  );
 
   /// Debug iOS OAuth Client ID (optional, for iOS support)
   static const String debugIOSClientId = 
@@ -59,7 +69,8 @@ class OAuthConfig {
   static const String prodAndroidClientId = 
       '427498483720-tdul9p1mvk4ilsaars981m4r553vjivn.apps.googleusercontent.com';
 
-  static const String prodWebServerClientId = '';
+  static const String prodWebServerClientId =
+      '427498483720-8vc95snm3dqsv68rfit4edpigp8l8e0p.apps.googleusercontent.com';
 
   /// Production iOS OAuth Client ID (optional, for iOS support)
   static const String prodIOSClientId = 
@@ -81,6 +92,12 @@ class OAuthConfig {
 
   /// Passed to [GoogleSignIn.serverClientId] so Google returns an OpenID ID token on Android.
   static String? get webServerClientId {
+    final env = webServerClientIdFromEnv.trim();
+    if (env.isNotEmpty &&
+        env.endsWith('.apps.googleusercontent.com') &&
+        !env.contains('YOUR_')) {
+      return env;
+    }
     final id = isProduction ? prodWebServerClientId : debugWebServerClientId;
     if (id.isEmpty || id.contains('YOUR_')) return null;
     return id;

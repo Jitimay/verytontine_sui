@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--
-      Google Sign-In reads this as the "server" / Web OAuth client for ID tokens.
-      NEVER put your Android OAuth client ID here — that causes ApiException 10 (DEVELOPER_ERROR).
-
-      1. Google Cloud Console → APIs & Credentials → Create credentials → OAuth client ID
-      2. Choose "Web application" (not Android).
-      3. Create, then copy the Web client ID and uncomment the line below (same value as
-         debugWebServerClientId in lib/config/oauth_config.dart).
-
-    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
-    -->
+    <!-- Web application OAuth client ID (same as debugWebServerClientId in oauth_config.dart). -->
+    <string name="default_web_client_id">427498483720-8vc95snm3dqsv68rfit4edpigp8l8e0p.apps.googleusercontent.com</string>
 </resources>

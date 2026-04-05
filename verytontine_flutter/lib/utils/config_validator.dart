@@ -79,6 +79,14 @@ class ConfigValidator {
       );
     }
 
+    if (OAuthConfig.webServerClientId == null) {
+      warnings.add(
+        'WEB_SERVER_CLIENT_ID / debugWebServerClientId is unset — Google Sign-In will not return an '
+        'OpenID token (zkLogin needs it). Create a Web application OAuth client and set '
+        'debugWebServerClientId or run with --dart-define=WEB_SERVER_CLIENT_ID=....',
+      );
+    }
+
     return ConfigValidationResult.valid(warnings: warnings);
   }
 

@@ -59,10 +59,15 @@ class ZkLoginService {
       final idToken = googleAuth.idToken;
       if (idToken == null) {
         return AuthenticationResult.failure(
-          errorMessage: 'Google Sign-In succeeded but no OpenID token was returned.\n\n'
-              'In Google Cloud Console, create an OAuth client of type **Web application** '
-              'in the same project and set `debugWebServerClientId` (or prod) in '
-              'lib/config/oauth_config.dart to that client\'s ID.',
+          errorMessage: 'Google Sign-In worked, but Google did not return an OpenID ID token.\n\n'
+              'Fix:\n'
+              '1. Google Cloud Console → APIs & Credentials → Create OAuth client ID → **Web application**.\n'
+              '2. Copy the **Web client** ID (not the Android one).\n'
+              '3. Set it either:\n'
+              '   • `debugWebServerClientId` in lib/config/oauth_config.dart, or\n'
+              '   • flutter run --dart-define=WEB_SERVER_CLIENT_ID=that-id.apps.googleusercontent.com\n\n'
+              'Optional Android fallback: android/app/src/main/res/values/strings.xml → '
+              '`default_web_client_id` with the **same** Web client ID (only if Dart serverClientId is empty).',
           errorType: AuthErrorType.tokenError,
         );
       }
